@@ -1,5 +1,10 @@
-#!/bin/sh
-# not necessary anymore in newer terraform versions, you can use a backend.tf file
-if [ "`terraform --version |head -n1`" == "Terraform v0.7.7" ] ; then
-  terraform remote config -backend=s3 -backend-config="bucket=terraform-state-a2b621f" -backend-config="key=terraform/terraform.tfstate" -backend-config="region=eu-west-1"
-fi
+#!/bin/bash
+set -ex
+AWS_REGION="eu-west-1"
+cd jenkins-packer-demo
+S3_BUCKET=`aws s3 ls --region $AWS_REGION |grep terraform-state |tail -n1 |cut -d ' ' -f3`
+sed -i 's/terraform-state-xx70dpnh/'${S3_BUCKET}'/' backend.tf
+sed -i 's/#//g' backend.tf
+aws s3 cp s3://${S3_BUCKET}/amivar.tf amivar.tf --region $AWS_REGION
+terraform init
+terraform apply -auto-approve -var APP_INSTANCE_COUNT=1 -target aws_instance.app-instance
